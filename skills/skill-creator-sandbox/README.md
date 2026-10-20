@@ -4,7 +4,29 @@ English | [日本語（原本）](README.ja.md)
 
 A companion to skill-creator for creating, updating, and evaluating skills.
 It helps prevent a skill from passing evaluation on the author’s machine but failing on users’ machines because it relies on local instructions or other skills.
-Use skill-creator-sandbox alongside skill-creator when creating, updating, or evaluating a skill.
+
+## Install
+
+With Node.js and npm installed, run:
+
+```sh
+npx skills add sonodar/skills --skill skill-creator-sandbox
+```
+
+This skill supports Claude Code and Codex and works alongside skill-creator.
+You can keep using your existing skill-creator installation.
+If you do not have one, you can install [Anthropic's skill-creator](https://github.com/anthropics/skills/tree/main/skills/skill-creator):
+
+```sh
+npx skills add anthropics/skills --skill skill-creator
+```
+
+## Usage
+
+For example:
+
+> Use skill-creator and skill-creator-sandbox to create a code review skill.
+
 It first asks whether anyone other than you will use the skill, unless that is already clear from the conversation.
 This includes sharing within a company or team.
 If others will use it, it applies dependency review and evaluation environment isolation; if only you will use it, it continues with the normal skill-creator workflow.
