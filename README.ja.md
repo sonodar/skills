@@ -9,7 +9,7 @@ Claude CodeやCodexで使うSKILLをまとめたリポジトリです。
 
 | SKILL | 用途 |
 | --- | --- |
-| [skill-creator-sandbox](skills/skill-creator-sandbox/SKILL.ja.md) | 自分以外の人も使うSKILLが作成者の端末にしかない指示や別のSKILLに依存し、利用者の端末では同じように動かない問題を防ぐ。 |
+| [skill-creator-sandbox](skills/skill-creator-sandbox/README.ja.md) | 自分以外の人も使うSKILLが作成者の端末にしかない指示や別のSKILLに依存し、利用者の端末では同じように動かない問題を防ぐ。 |
 
 ## 追加する
 
@@ -28,41 +28,10 @@ npx skills add sonodar/skills
 npx skills add sonodar/skills --list
 ```
 
-SKILLを指定する場合は、`--skill`にSKILL名を渡します。
-たとえば、skill-creator-sandboxだけを追加するには次を実行します。
-
-```sh
-npx skills add sonodar/skills --skill skill-creator-sandbox
-```
-
 ## 使う
 
-エージェントへの依頼に、使いたいSKILLの名前を添えてください。
-用途、必要なツール、併用するSKILLは、一覧から各SKILL.mdを参照できます。
-
-skill-creatorでSKILLを作成・更新・検証するときに読み込み、最初に自分以外の人も使うか確認します。
-自分以外の人も使うなら依存レビューと検証環境の分離を適用し、自分だけで使うなら通常のskill-creatorで進めます。
-未定なら、後から自分以外の人も使う可能性に備えて適用を提案し、ユーザーが選んだ場合に適用します。
-会話ですでに誰が使うかわかっていれば聞き直しません。
-社内やチーム内での共有も対象です。
-作成者の端末では、ローカルの指示が説明を補ったり、別のSKILLが処理を助けたりして、検証に通ることがあります。
-利用者の端末には同じ指示やSKILLがあるとは限らないため、その検証だけでは自分以外の人も使うSKILLが正しく動くと判断できません。
-skill-creator-sandboxは、こうした依存を確認し、対象SKILLと必要な入力だけで検証するための手順を加えます。
-自分だけで使うSKILLでは、依存レビューと検証環境の分離を省きます。
-
-Claude CodeとCodexに対応しています。
-普段使っているskill-creatorがあれば、そのまま使えます。
-未導入の場合は、[Anthropicのskill-creator](https://github.com/anthropics/skills/tree/main/skills/skill-creator)を追加できます。
-
-```sh
-npx skills add anthropics/skills --skill skill-creator
-```
-
-依頼の例です。
-
-> skill-creatorとskill-creator-sandboxを使って、コードレビュー用のSKILLを作ってください。
-
-背景と不要になる条件は、[skill-creator-sandboxのREADME](skills/skill-creator-sandbox/README.ja.md)を参照してください。
+一覧から使いたいSKILLのREADMEを開き、導入方法と使い方を確認してください。
+エージェントへの依頼に、そのSKILLの名前を添えてください。
 
 ## 更新する
 
