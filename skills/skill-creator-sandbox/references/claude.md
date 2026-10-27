@@ -1,98 +1,92 @@
 # Environment isolation in Claude Code
 
-This procedure is based on Claude Code 2.1.301.
+Verified on macOS with Claude Code 2.1.311.
 
-## Recommended approach
+## Use a fresh restricted session
 
-For behavioral evaluation of a skill's instructions, combine `--setting-sources ""` with `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1` in a fresh CLI session.
-Exclude user, project, and local settings, and disable auto memory separately.
-Also add `--strict-mcp-config` when the test does not need MCP.
-Because the target skill is explicitly read as a file, this does not test automatic selection based on its description.
+Exclude author-specific instructions, skills, settings and memory so they cannot fill gaps in the target skill.
+Keep product-standard instructions, bundled skills and plugins, and required administrator policies.
+For the tested read-only evaluation, use a fresh workspace outside the author's project and a new main-thread CLI session with these controls:
 
-Consult the official [settings-loading documentation](https://code.claude.com/docs/en/agent-sdk/claude-code-features), [CLI reference](https://code.claude.com/docs/en/cli-reference), and local `claude --help` before use.
-Even with these settings excluded, standard product instructions, built-in skills, administrator settings, and `~/.claude.json` remain.
-Do not treat this as a way to block all local information or as a sandbox that restricts file access.
+| Control | Purpose |
+| --- | --- |
+| `--restricted` | Excludes user/project/local settings and confines file tools to working directories. |
+| `--setting-sources ""` | Explicitly excludes those settings sources. |
+| `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1` | Excludes auto memory separately. |
+| `--strict-mcp-config` | Excludes MCP configurations not explicitly supplied. |
+| `--tools Read,Skill` | Makes the file-reading and skill tools available, without command execution tools. |
+| `--permission-mode dontAsk` | Refuses operations that require approval instead of expanding access during the test. |
+| `--no-session-persistence` | Avoids retaining the test conversation; it does not itself isolate instructions. |
 
-## Run the target skill in a fresh session
+Copy the complete target skill and required inputs into the workspace, then explicitly ask Claude to read the copied SKILL.md and execute it.
+Do not resume, continue or fork the authoring conversation, and do not add the author's home or project with `--add-dir`.
+This evaluates the skill's instructions, not automatic selection from its description.
 
-1. Create an evaluation directory outside the project and copy only the complete target skill and required inputs. Do not bring in surrounding CLAUDE.md, AGENTS.md, rules, or configuration files.
-2. In `request.txt`, ask the agent to read the copied target skill with Read and execute it. Do not supply the expected answer or authoring conversation.
-3. Start a fresh session in the evaluation directory and save stdout, stderr, and debug logs. Do not use `--resume`, `--continue`, or `--fork-session`.
+Resolve the installed CLI executable directly and pass an explicit environment allowlist.
+Do not inherit wrapper variables, session context, provider overrides or shell configuration wholesale.
+The authenticated test retained `HOME`, `USER`, `LOGNAME`, and `SECURITYSESSIONID` for the existing macOS login, plus a system-only `PATH`, `TMPDIR`, `DISABLE_AUTOUPDATER=1`, and the memory control above.
+Keeping only `HOME` and the runtime variables lost authentication; retaining the three OS identity/session variables together restored it.
+Their individual necessity was not tested, and other operating systems may need different authentication context.
+Never copy another session's identifier or print credentials.
 
-Use the following as a launch example for tests that require only reads.
-If asking the user to run it, put the command with resolved paths in an executable file and provide only a short command to launch that file.
+The tested authenticated procedure keeps the normal home for login state and excludes its author-specific instruction sources through the controls above.
+An empty home also passed synthetic input checks, but could not use the existing login in this test.
+Do not copy credentials or all of `~/.claude` to make that variant work.
+`~/.claude.json` and required managed settings remain available to the CLI; this procedure does not claim the entire CLI process is unable to access the home directory.
 
-```sh
-env -u CLAUDE_CODE_SAFE_MODE -u CLAUDE_CODE_DISABLE_CLAUDE_MDS \
-  CLAUDE_CODE_DISABLE_AUTO_MEMORY=1 \
-  claude -p --setting-sources "" --strict-mcp-config \
-    --permission-mode dontAsk --allowedTools Read \
-    --output-format stream-json --verbose --no-session-persistence \
-    --debug-file ./eval.debug.log \
-    < request.txt > events.jsonl 2> stderr.txt
-```
+See the official [CLI reference](https://code.claude.com/docs/en/cli-reference), [settings precedence](https://code.claude.com/docs/en/settings), [environment variables](https://code.claude.com/docs/en/env-vars), and [permissions](https://code.claude.com/docs/en/permissions).
+Check installed help and relevant changes when the version differs.
 
-The initial `env -u` removes variables inherited from a parent running in safe mode.
-Do not use it to remove administrator-enforced settings.
-Local experiments also compared runs with session-related environment variables used for nested CLI launches removed.
-When launching from a parent, inspect the inherited environment. If nested execution is rejected, do not count the run as successful; start a fresh session from a separate terminal.
-Do not display or copy credentials from environment variables or logs.
+## Check all author-specific input routes
 
-`--allowedTools Read` grants permission to Read; it does not restrict the available tool list to Read alone.
-To further restrict available tools, use `--tools` while preserving the capabilities needed by the test.
-For tests requiring writes or external tools, choose launch settings consistent with the authorized scope and dependencies.
-Distinguish denied operations from defects in the skill.
+Review startup instructions, rules, personal/project skills, settings, hooks, plugins, custom agents, output styles, memory, account-synced skills, MCP connections and inherited environment variables together.
+Select a configuration that excludes their sources instead of maintaining a growing list of individual files to disable.
+According to the [skills documentation](https://code.claude.com/docs/en/skills), excluding `user` from setting sources also prevents account-skill syncing.
+Do not turn syncing off in everyday user settings for the test: that setting can move existing synced skills to trash.
 
-If the target skill is outside the evaluation directory, add only its required copy location with `--add-dir`.
-Do not add the everyday home directory or the entire project.
-Settings added through `--settings` remain active even with `--setting-sources ""`, so include only explicitly selected settings, such as observation hooks.
+In the tested release, normal startup loaded synthetic `.claude/skills` controls but did not load independently placed `~/.agents/skills` or project `.agents/skills` controls.
+References to `.agents/skills` in the installed binary included import-from-other-tool code; their presence alone did not establish startup discovery.
+Symlinks from a discovered skill directory can still point into `.agents`.
+Recheck discovery on version changes rather than treating `.agents` as permanently irrelevant.
 
-## Conditions for using a subagent
+## Verify startup input and runtime access
 
-Normal non-fork subagents do not inherit the parent's conversation history, but they load instruction files and other context through separate paths.
-`omitClaudeMd: true` alone does not exclude other skills or plugin hooks.
-In local testing, an installed plugin's `SubagentStart` hook supplied additional instructions to a subagent configured with `omitClaudeMd: true` and `tools: ["Read"]`.
-The subagent did not report this itself; it was found in the debug log.
+Before accepting an evaluation, run positive controls with independent, nonsecret random markers in synthetic instruction sources.
+Confirm those markers enter a normal session, then check that they are absent from the restricted session's actual input.
+Keep the skill tool available during discovery checks: turning all tools off also removed skill descriptions in the test and would give a false sense of exclusion.
 
-Before using a subagent, inspect the parent's settings for hook, skill, and memory loading paths as well.
-Then pass only the target skill and minimum inputs, without inheriting history or specifying persistent memory.
-Also check that the delegation request does not include principles from the authoring environment.
+The mechanical test captured actual request bodies with a loopback-only mock API, a dummy key and synthetic homes.
+The normal request contained markers from global CLAUDE.md, rules, personal skills, project CLAUDE.md, project skills, auto memory and a SessionStart hook.
+The restricted request contained none of them, while standard skills and builtin-source plugins remained.
+The capture-only endpoint deliberately returned an API error; those runs inspected inputs and were not counted as successful behavioral evaluations.
+Never direct real credentials or private user context to a diagnostic endpoint.
 
-According to the [official subagent documentation](https://code.claude.com/docs/en/subagents), providing a custom prompt to a custom subagent replaces Claude Code's standard system prompt.
-To evaluate behavior under normal Claude Code conditions, use the main thread of a fresh CLI session.
-Using `omitClaudeMd` when starting a main session with `--agent` does not have the same effect.
+For runtime checks, require an allowed read inside the workspace and denied reads outside it, including a symlink from inside to outside.
+The mock API returned deterministic Read tool calls to the real CLI; the CLI returned actual `tool_result` messages with the workspace file's contents and errors for an external CLAUDE.md, an external `.agents` skill, and the symlink.
+The tool results, rather than a model's summary, established the boundary.
 
-## Verify isolation
+The authenticated main-thread test then used the existing login, read a copied target skill with Read, and returned the exact random response specified only in that file.
+It completed with exit code 0 and a successful result event.
+Save stdout, stderr, debug logs, actual tool results, the launch configuration and marker assertions together.
+Use `--output-format stream-json --verbose` for execution records and `--debug-file` for diagnostics.
+If giving the user a long command, put the resolved launch command in a script and provide its short invocation.
 
-Consider launch settings, logs of loaded instructions, actual tool calls, and outputs together.
-Synthetic instruction files and a separate skill containing marker strings can help uncover omissions when compared with a normal launch that does load them.
-The absence of a marker or the presence of expected output alone does not prove that instructions were excluded.
+`InstructionsLoaded` hooks and init catalogs can help, but neither alone proves all input was excluded.
+Some instruction reads do not emit that hook, and a listed plugin need not be active.
+Absence of a marker in the final answer, a refusal to reveal it, or the expected target output alone is not proof of isolation.
 
-- When recording loads with the `InstructionsLoaded` hook, some paths, such as direct reads of AGENTS.md, may not emit an event. Cross-check tool history and debug logs.
-- `additionalContext` in debug logs helps trace instructions added through hooks.
-- The init event's `plugins` list included plugins disabled by safe mode. Do not infer whether a plugin is active from that list alone.
-- The init event's `skills` list may differ from the skills visible to the model. To evaluate automatic selection, inspect actual `Skill` calls.
+## Capabilities and limits
 
-Save raw logs in the evaluation directory and analyze the saved files.
-Before sharing logs, check for credentials and unnecessary local information.
+The verified procedure covers explicit skill loading with Read and Skill.
+If a task needs writes, command execution, MCP, subagents or other integrations, provide only its declared dependencies and verify those capabilities' input and access routes before accepting the evaluation.
+In particular, `--restricted` can expose command tools when explicitly requested with `--tools`; file-tool restrictions do not establish a shell sandbox.
+Do not interpret a denied required operation as a defect in the target skill.
 
-## The roles of safe mode and bare mode
+Actual API-input inspection used synthetic homes and dummy API authentication; the live OAuth run supplied actual Read/result records and startup catalogs, not a captured full OAuth request.
+Custom plugins, MCP servers and account-synced skills were not each activated as separate positive controls, and administrator-policy preservation was not exhaustively tested.
 
-With `--safe-mode`, the experiment also excluded synthetic local instructions and executed the explicitly loaded target skill.
-However, the user's `language` setting remained, `--agents` was ignored, and the supplied observation hooks did not run.
-The official specification retains administrator policy settings but disables managed CLAUDE.md, skills, plugins, and similar resources.
-For comparisons that need to preserve administrator-distributed instructions, do not make safe mode the first choice.
-
-`--bare` also differs in authentication and the standard prompt.
-Do not treat it as equivalent to a normal session using OAuth.
-
-## Verified scope and limitations
-
-In a small comparison experiment conducted by Claude Code itself, the recommended configuration excluded synthetic CLAUDE.md, AGENTS.md, rules, auto memory, and another skill, and the target skill produced the expected output.
-However, the comparison also launched subagents, and the process was terminated when a wait operation timed out after results had been produced.
-Successful completion of the main-thread-only launch example above has not been verified; check it on the next run.
-
-Whether administrator instructions are actually preserved has not been verified on this machine.
-Also identify remaining inputs such as built-in skills and `~/.claude.json`.
-This experiment did not evaluate automatic selection based on descriptions, skills that write files, or instructions read later from subdirectories.
-To evaluate automatic selection, use a separate configuration that includes the target skill in discovery, and distinguish that from behavioral evaluation of its instructions.
+Use a subagent only if the same exclusion and access checks pass for it.
+No inherited conversation history or `omitClaudeMd: true` alone is sufficient: plugin hooks and other sources can add context separately.
+A fresh main session preserves the normal product prompt, whereas a custom subagent prompt can replace it.
+Do not substitute `--bare` or `--safe-mode` without checking their different prompt, authentication and customization behavior.
+If the required evaluation cannot run with verified exclusion, continue dependency review and report independent behavioral evaluation as incomplete.

@@ -72,12 +72,29 @@ Create a test directory outside the project; do not copy the surrounding setting
 For a baseline comparison, use a separate fresh session with the same inputs, tools, model, and permissions, omitting only the target skill.
 Do not give the execution agent reference answers or the grader's conclusions. Evaluate the output against the user's requirements after receiving it.
 
-The isolation target is additional local instructions, not the product's standard instructions or administrator constraints.
+The isolation target is the author's additional instructions, skills, settings and state that other users will not have.
+Keep product-standard instructions, skills and plugins, and required administrator constraints as part of the normal evaluation environment.
 Do not expand permissions or move or delete everyday configuration files for evaluation.
+
+## Verify the environment before accepting results
+
+Check input sources together: global and project instructions, personal and project skills, configuration, memory, previous sessions, hooks, plugins, custom agents, account-synced resources, MCP connections, CLI wrappers and inherited environment variables.
+Exclude their author-specific sources through the agent's verified launch configuration; do not build a growing list of individual local files to suppress.
+
+Use synthetic, nonsecret random markers and first confirm that the normal configuration loads them.
+Then inspect the isolated configuration's actual input or loading records and check that those markers are absent.
+Keep the relevant discovery mechanism enabled in the positive control; hiding the skills catalog is not proof that local skills were excluded.
+Record sources checked only through configuration separately from sources exercised by a working positive control.
+
+Also check later file access: a synthetic file inside the evaluation workspace must be readable, and an unrelated synthetic instruction file outside it must be refused.
+Use actual tool results or direct sandbox process results, including a symlink case where supported.
+An empty home or read-only permissions alone do not establish this boundary.
+Verify the capabilities the target skill needs; a read-only test does not validate later additions of shell execution, writes or integrations.
 
 ## Report the results
 
 Briefly state what was tried and what worked, along with the CLI or host product version, launch method, supplied materials, instructions confirmed excluded, and any remaining instructions or uncertainties.
-Do not treat the agent's statement that it “did not read” something as sufficient evidence of isolation.
+Do not treat the agent's statement that it “did not read” something, its refusal to reveal a marker, or the target's expected output as sufficient evidence of isolation.
 Consider launch settings, input inspection, and execution logs together.
+State separately whether environment checks passed and whether the target skill's behavioral evaluation completed.
 Distinguish behavioral evaluation that explicitly loads the skill from evaluation of automatic selection based on its description.
